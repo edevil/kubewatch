@@ -28,15 +28,16 @@ import (
 	"github.com/skippbox/kubewatch/pkg/handlers"
 	"github.com/skippbox/kubewatch/pkg/utils"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apimachinery/pkg/util/wait"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	api_v1 "k8s.io/client-go/pkg/api/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	api_v1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/client-go/kubernetes"
 )
 
 const maxRetries = 5
@@ -50,30 +51,43 @@ type Controller struct {
 	eventHandler handlers.Handler
 }
 
+// QueueMessage - type of stuff stored on event queue
+type QueueMessage struct {
+	oldObject interface{}
+	newObject interface{}
+}
+
 func Start(conf *config.Config, eventHandler handlers.Handler) {
 	kubeClient := utils.GetClientOutOfCluster()
 
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
 	if conf.Resource.Pod {
 		c := newControllerPod(kubeClient, eventHandler)
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
 		go c.Run(stopCh)
-
-		sigterm := make(chan os.Signal, 1)
-		signal.Notify(sigterm, syscall.SIGTERM)
-		signal.Notify(sigterm, syscall.SIGINT)
-		<-sigterm
 	}
 
-	//if conf.Resource.Services {
-	//	watchServices(kubeClient, eventHandler)
-	//}
-	//
-	//if conf.Resource.ReplicationController {
-	//	watchReplicationControllers(kubeClient, eventHandler)
-	//}
-	//
+	if conf.Resource.Services {
+		c := newControllerServices(kubeClient, eventHandler)
+		go c.Run(stopCh)
+	}
+
+	if conf.Resource.ReplicationController {
+		c := newControllerRC(kubeClient, eventHandler)
+		go c.Run(stopCh)
+	}
+
+	if conf.Resource.Deployment {
+		c := newControllerDeployment(kubeClient, eventHandler)
+		go c.Run(stopCh)
+	}
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	signal.Notify(sigterm, syscall.SIGINT)
+	<-sigterm
+
 	//if conf.Resource.Deployment {
 	//	watchDeployments(kubeExtensionsClient, eventHandler)
 	//}
@@ -87,49 +101,82 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	//	servicesStore = watchPersistenVolumes(kubeClient, servicesStore, eventHandler)
 	//}
 
-	//logrus.Fatal(http.ListenAndServe(":8081", nil))
 }
 
 func newControllerPod(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.CoreV1().Pods(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.CoreV1().Pods(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.Pod{})
+}
+
+func newControllerServices(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.CoreV1().Services(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.CoreV1().Services(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.Service{})
+}
+
+func newControllerRC(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.ReplicationController{})
+}
+
+func newControllerDeployment(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &v1beta1.Deployment{})
+}
+
+func newControllerGeneric(client kubernetes.Interface, eventHandler handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				return client.CoreV1().Pods(meta_v1.NamespaceAll).List(options)
-			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				return client.CoreV1().Pods(meta_v1.NamespaceAll).Watch(options)
-			},
+			ListFunc:  listFunc,
+			WatchFunc: watchFunc,
 		},
-		&api_v1.Pod{},
+		objType,
 		0, //Skip resync
 		cache.Indexers{},
 	)
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
+			queue.Add(&QueueMessage{
+				newObject: obj,
+			})
 		},
 		UpdateFunc: func(old, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				queue.Add(key)
-			}
+			queue.Add(&QueueMessage{
+				newObject: new,
+				oldObject: old,
+			})
 		},
 		DeleteFunc: func(obj interface{}) {
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
+			queue.Add(&QueueMessage{
+				oldObject: obj,
+			})
 		},
 	})
 
 	return &Controller{
-		logger:       logrus.WithField("pkg", "kubewatch-pod"),
+		logger:       logrus.WithField("pkg", "kubewatch-controller"),
 		clientset:    client,
 		informer:     informer,
 		queue:        queue,
@@ -179,7 +226,7 @@ func (c *Controller) processNextItem() bool {
 	}
 	defer c.queue.Done(key)
 
-	err := c.processItem(key.(string))
+	err := c.processItem(key.(*QueueMessage))
 	if err == nil {
 		// No error, reset the ratelimit counters
 		c.queue.Forget(key)
@@ -196,70 +243,20 @@ func (c *Controller) processNextItem() bool {
 	return true
 }
 
-func (c *Controller) processItem(key string) error {
-	c.logger.Infof("Processing change to Pod %s", key)
+func (c *Controller) processItem(msg *QueueMessage) error {
+	c.logger.Infof("Processing change")
 
-	obj, exists, err := c.informer.GetIndexer().GetByKey(key)
-	if err != nil {
-		return fmt.Errorf("Error fetching object with key %s from store: %v", key, err)
+	if msg.oldObject == nil {
+		c.eventHandler.ObjectCreated(msg.newObject)
+	} else if msg.newObject == nil {
+		c.eventHandler.ObjectDeleted(msg.oldObject)
+	} else {
+		c.eventHandler.ObjectUpdated(msg.oldObject, msg.newObject)
 	}
 
-	if !exists {
-		c.eventHandler.ObjectDeleted(obj)
-		return nil
-	}
-
-	c.eventHandler.ObjectCreated(obj)
 	return nil
 }
 
-//
-//func watchServices(client *client.Client, eventHandler handlers.Handler) cache.Store {
-//	//Define what we want to look for (Services)
-//	watchlist := cache.NewListWatchFromClient(client, "services", api.NamespaceAll, fields.Everything())
-//
-//	resyncPeriod := 30 * time.Minute
-//
-//	//Setup an informer to call functions when the watchlist changes
-//	eStore, eController := framework.NewInformer(
-//		watchlist,
-//		&api.Service{},
-//		resyncPeriod,
-//		framework.ResourceEventHandlerFuncs{
-//			AddFunc:    eventHandler.ObjectCreated,
-//			DeleteFunc: eventHandler.ObjectDeleted,
-//			UpdateFunc: eventHandler.ObjectUpdated,
-//		},
-//	)
-//
-//	//Run the controller as a goroutine
-//	go eController.Run(wait.NeverStop)
-//
-//	return eStore
-//}
-//
-//func watchReplicationControllers(client *client.Client, eventHandler handlers.Handler) cache.Store {
-//	//Define what we want to look for (ReplicationControllers)
-//	watchlist := cache.NewListWatchFromClient(client, "replicationcontrollers", api.NamespaceAll, fields.Everything())
-//
-//	resyncPeriod := 30 * time.Minute
-//
-//	//Setup an informer to call functions when the watchlist changes
-//	eStore, eController := framework.NewInformer(
-//		watchlist,
-//		&api.ReplicationController{},
-//		resyncPeriod,
-//		framework.ResourceEventHandlerFuncs{
-//			AddFunc:    eventHandler.ObjectCreated,
-//			DeleteFunc: eventHandler.ObjectDeleted,
-//		},
-//	)
-//
-//	//Run the controller as a goroutine
-//	go eController.Run(wait.NeverStop)
-//
-//	return eStore
-//}
 //
 //func watchDeployments(client *client.ExtensionsClient, eventHandler handlers.Handler) cache.Store {
 //	//Define what we want to look for (Deployments)
