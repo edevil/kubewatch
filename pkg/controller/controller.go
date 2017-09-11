@@ -89,15 +89,15 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 		go c.Run(stopCh)
 	}
 
+	if conf.Resource.PersistentVolume {
+		c := newControllerPV(kubeClient, eventHandler)
+		go c.Run(stopCh)
+	}
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
 	<-sigterm
-
-	//if conf.Resource.PersistentVolume {
-	//	var servicesStore cache.Store
-	//	servicesStore = watchPersistenVolumes(kubeClient, servicesStore, eventHandler)
-	//}
 
 }
 
@@ -149,6 +149,16 @@ func newControllerJob(client kubernetes.Interface, eventHandler handlers.Handler
 		return client.BatchV1().Jobs(meta_v1.NamespaceAll).Watch(options)
 	}
 	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &batchv1.Job{})
+}
+
+func newControllerPV(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.CoreV1().PersistentVolumes().List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.CoreV1().PersistentVolumes().Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.PersistentVolume{})
 }
 
 func newControllerGeneric(client kubernetes.Interface, eventHandler handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
@@ -264,27 +274,3 @@ func (c *Controller) processItem(msg *QueueMessage) error {
 
 	return nil
 }
-
-//
-//func watchPersistenVolumes(client *client.Client, store cache.Store, eventHandler handlers.Handler) cache.Store {
-//	//Define what we want to look for (PersistenVolumes)
-//	watchlist := cache.NewListWatchFromClient(client, "persistentvolumes", api.NamespaceAll, fields.Everything())
-//
-//	resyncPeriod := 30 * time.Minute
-//
-//	//Setup an informer to call functions when the watchlist changes
-//	eStore, eController := framework.NewInformer(
-//		watchlist,
-//		&api.PersistentVolume{},
-//		resyncPeriod,
-//		framework.ResourceEventHandlerFuncs{
-//			AddFunc:    eventHandler.ObjectCreated,
-//			DeleteFunc: eventHandler.ObjectDeleted,
-//		},
-//	)
-//
-//	//Run the controller as a goroutine
-//	go eController.Run(wait.NeverStop)
-//
-//	return eStore
-//}
