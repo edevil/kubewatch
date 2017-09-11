@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	api_v1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
+	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -83,19 +84,16 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 		go c.Run(stopCh)
 	}
 
+	if conf.Resource.Job {
+		c := newControllerJob(kubeClient, eventHandler)
+		go c.Run(stopCh)
+	}
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
 	<-sigterm
 
-	//if conf.Resource.Deployment {
-	//	watchDeployments(kubeExtensionsClient, eventHandler)
-	//}
-	//
-	//if conf.Resource.Job {
-	//	watchJobs(kubeExtensionsClient, eventHandler)
-	//}
-	//
 	//if conf.Resource.PersistentVolume {
 	//	var servicesStore cache.Store
 	//	servicesStore = watchPersistenVolumes(kubeClient, servicesStore, eventHandler)
@@ -141,6 +139,16 @@ func newControllerDeployment(client kubernetes.Interface, eventHandler handlers.
 		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).Watch(options)
 	}
 	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &v1beta1.Deployment{})
+}
+
+func newControllerJob(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.BatchV1().Jobs(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.BatchV1().Jobs(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &batchv1.Job{})
 }
 
 func newControllerGeneric(client kubernetes.Interface, eventHandler handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
@@ -257,52 +265,6 @@ func (c *Controller) processItem(msg *QueueMessage) error {
 	return nil
 }
 
-//
-//func watchDeployments(client *client.ExtensionsClient, eventHandler handlers.Handler) cache.Store {
-//	//Define what we want to look for (Deployments)
-//	watchlist := cache.NewListWatchFromClient(client, "deployments", api.NamespaceAll, fields.Everything())
-//
-//	resyncPeriod := 30 * time.Minute
-//
-//	//Setup an informer to call functions when the watchlist changes
-//	eStore, eController := framework.NewInformer(
-//		watchlist,
-//		&v1beta1.Deployment{},
-//		resyncPeriod,
-//		framework.ResourceEventHandlerFuncs{
-//			AddFunc:    eventHandler.ObjectCreated,
-//			DeleteFunc: eventHandler.ObjectDeleted,
-//		},
-//	)
-//
-//	//Run the controller as a goroutine
-//	go eController.Run(wait.NeverStop)
-//
-//	return eStore
-//}
-//
-//func watchJobs(client *client.ExtensionsClient, eventHandler handlers.Handler) cache.Store {
-//	//Define what we want to look for (Jobs)
-//	watchlist := cache.NewListWatchFromClient(client, "jobs", api.NamespaceAll, fields.Everything())
-//
-//	resyncPeriod := 30 * time.Minute
-//
-//	//Setup an informer to call functions when the watchlist changes
-//	eStore, eController := framework.NewInformer(
-//		watchlist,
-//		&v1beta1.Job{},
-//		resyncPeriod,
-//		framework.ResourceEventHandlerFuncs{
-//			AddFunc:    eventHandler.ObjectCreated,
-//			DeleteFunc: eventHandler.ObjectDeleted,
-//		},
-//	)
-//
-//	//Run the controller as a goroutine
-//	go eController.Run(wait.NeverStop)
-//
-//	return eStore
-//}
 //
 //func watchPersistenVolumes(client *client.Client, store cache.Store, eventHandler handlers.Handler) cache.Store {
 //	//Define what we want to look for (PersistenVolumes)

@@ -19,7 +19,7 @@ package event
 import (
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
-	"k8s.io/client-go/pkg/apis/batch"
+	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 // Event represent an event got from k8s api server
@@ -70,7 +70,7 @@ func New(obj interface{}, action string) Event {
 		kind = "deployment"
 		reason = action
 		status = m[action]
-	} else if apiJob, ok := obj.(*batch.Job); ok {
+	} else if apiJob, ok := obj.(*batchv1.Job); ok {
 		namespace = apiJob.ObjectMeta.Namespace
 		name = apiJob.Name
 		kind = "job"
