@@ -16,6 +16,10 @@ func GetClient() kubernetes.Interface {
 		logrus.Fatalf("Can not get kubernetes config: %v", err)
 	}
 
+	return createClient(config)
+}
+
+func createClient(config *rest.Config) kubernetes.Interface {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Fatalf("Can not create kubernetes client: %v", err)
@@ -39,7 +43,5 @@ func GetClientOutOfCluster() kubernetes.Interface {
 		logrus.Fatalf("Can not get kubernetes config: %v", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-
-	return clientset
+	return createClient(config)
 }
