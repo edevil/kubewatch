@@ -1,5 +1,6 @@
 /*
 Copyright 2016 Skippbox, Ltd.
+Copyright 2017 André Cruz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +18,8 @@ limitations under the License.
 package handlers
 
 import (
-	"github.com/skippbox/kubewatch/config"
-	"github.com/skippbox/kubewatch/pkg/handlers/slack"
+	"github.com/edevil/kubewatch/config"
+	"github.com/edevil/kubewatch/pkg/handlers/slack"
 )
 
 // Handler is implemented by any handler.

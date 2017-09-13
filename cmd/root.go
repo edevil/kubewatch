@@ -1,5 +1,6 @@
 /*
 Copyright 2016 Skippbox, Ltd.
+Copyright 2017 André Cruz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,8 +22,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/skippbox/kubewatch/config"
-	c "github.com/skippbox/kubewatch/pkg/client"
+	"github.com/edevil/kubewatch/config"
+	c "github.com/edevil/kubewatch/pkg/client"
 )
 
 var cfgFile string

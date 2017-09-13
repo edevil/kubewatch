@@ -1,5 +1,6 @@
 /*
 Copyright 2016 Skippbox, Ltd.
+Copyright 2017 André Cruz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +24,8 @@ import (
 
 	"github.com/nlopes/slack"
 
-	"github.com/skippbox/kubewatch/config"
-	"github.com/skippbox/kubewatch/pkg/event"
+	"github.com/edevil/kubewatch/config"
+	"github.com/edevil/kubewatch/pkg/event"
 )
 
 var slackColors = map[string]string{

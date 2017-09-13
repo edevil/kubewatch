@@ -1,5 +1,6 @@
 /*
 Copyright 2016 Skippbox, Ltd.
+Copyright 2017 André Cruz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +19,10 @@ package client
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/skippbox/kubewatch/config"
-	"github.com/skippbox/kubewatch/pkg/controller"
-	"github.com/skippbox/kubewatch/pkg/handlers"
-	"github.com/skippbox/kubewatch/pkg/handlers/slack"
+	"github.com/edevil/kubewatch/config"
+	"github.com/edevil/kubewatch/pkg/controller"
+	"github.com/edevil/kubewatch/pkg/handlers"
+	"github.com/edevil/kubewatch/pkg/handlers/slack"
 )
 
 // Run runs the event loop processing with given handler
