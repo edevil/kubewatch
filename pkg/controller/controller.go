@@ -58,8 +58,14 @@ type QueueMessage struct {
 	newObject interface{}
 }
 
+// Start - starts the controller
 func Start(conf *config.Config, eventHandler handlers.Handler) {
-	kubeClient := utils.GetClientOutOfCluster()
+	var kubeClient kubernetes.Interface
+	if conf.InCluster {
+		kubeClient = utils.GetClient()
+	} else {
+		kubeClient = utils.GetClientOutOfCluster()
+	}
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)

@@ -18,14 +18,13 @@ package slack
 
 import (
 	"fmt"
-	"log"
-	"os"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/nlopes/slack"
 
 	"github.com/skippbox/kubewatch/config"
 	"github.com/skippbox/kubewatch/pkg/event"
-	kbEvent "github.com/skippbox/kubewatch/pkg/event"
 )
 
 var slackColors = map[string]string{
@@ -37,13 +36,8 @@ var slackColors = map[string]string{
 var slackErrMsg = `
 %s
 
-You need to set both slack token and channel for slack notify,
-using "--token/-t" and "--channel/-c", or using environment variables:
-
-export KW_SLACK_TOKEN=slack_token
-export KW_SLACK_CHANNEL=slack_channel
-
-Command line flags will override environment variables
+You need to set both slack token and channel for slack notify
+in your configuration file.
 
 `
 
@@ -56,37 +50,29 @@ type Slack struct {
 
 // Init prepares slack configuration
 func (s *Slack) Init(c *config.Config) error {
-	token := c.Handler.Slack.Token
-	channel := c.Handler.Slack.Channel
-
-	if token == "" {
-		token = os.Getenv("KW_SLACK_TOKEN")
-	}
-
-	if channel == "" {
-		channel = os.Getenv("KW_SLACK_CHANNEL")
-	}
-
-	s.Token = token
-	s.Channel = channel
+	s.Token = c.Handler.Slack.Token
+	s.Channel = c.Handler.Slack.Channel
 
 	return checkMissingSlackVars(s)
 }
 
+// ObjectCreated - implementation of Handler interface
 func (s *Slack) ObjectCreated(obj interface{}) {
 	notifySlack(s, obj, "created")
 }
 
+// ObjectDeleted - implementation of Handler interface
 func (s *Slack) ObjectDeleted(obj interface{}) {
 	notifySlack(s, obj, "deleted")
 }
 
+// ObjectUpdated - implementation of Handler interface
 func (s *Slack) ObjectUpdated(oldObj, newObj interface{}) {
 	notifySlack(s, newObj, "updated")
 }
 
 func notifySlack(s *Slack, obj interface{}, action string) {
-	e := kbEvent.New(obj, action)
+	e := event.New(obj, action)
 	api := slack.New(s.Token)
 	params := slack.PostMessageParameters{}
 	attachment := prepareSlackAttachment(e)
@@ -95,11 +81,11 @@ func notifySlack(s *Slack, obj interface{}, action string) {
 	params.AsUser = true
 	channelID, timestamp, err := api.PostMessage(s.Channel, "", params)
 	if err != nil {
-		log.Printf("%s\n", err)
+		logrus.Printf("%s\n", err)
 		return
 	}
 
-	log.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
+	logrus.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 }
 
 func checkMissingSlackVars(s *Slack) error {

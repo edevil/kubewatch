@@ -17,9 +17,6 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -41,7 +38,6 @@ var RootCmd = &cobra.Command{
 		if err := config.Load(); err != nil {
 			logrus.Fatal(err)
 		}
-		config.CheckMissingResourceEnvvars()
 		c.Run(config)
 	},
 }
@@ -50,8 +46,7 @@ var RootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+		logrus.Fatal(err)
 	}
 }
 
@@ -70,11 +65,14 @@ func initConfig() {
 		viper.AddConfigPath("$HOME")      // adding home directory as first search path
 	}
 
-	viper.SetEnvPrefix("kw")
-	viper.AutomaticEnv() // read in environment variables that match
+	// TODO: study configration via env vars
+	//viper.SetEnvPrefix("kw")
+	//viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		logrus.Infoln("Using config file: ", viper.ConfigFileUsed())
+	} else {
+		logrus.Fatal("Could not process config file: ", err)
 	}
 }

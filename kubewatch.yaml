@@ -4,7 +4,7 @@ metadata:
   name: kubewatch
 spec:
   containers:
-  - image: tuna/kubewatch:v0.0.3
+  - image: edevil/kubewatch:v0.0.5
     imagePullPolicy: Always
     name: kubewatch
     volumeMounts:

@@ -17,16 +17,10 @@ limitations under the License.
 package config
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"runtime"
-
-	"gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 )
 
-var ConfigFileName = ".kubewatch.yaml"
-
+// Handler - hardcoded configured handler
 type Handler struct {
 	Slack Slack `json:"slack"`
 }
@@ -45,9 +39,9 @@ type Resource struct {
 
 // Config struct contains kubewatch configuration
 type Config struct {
-	Handler Handler `json:"handler"`
-	//Reason   []string `json:"reason"`
-	Resource Resource `json:"resource"`
+	Handler   Handler  `json:"handler"`
+	Resource  Resource `json:"resource"`
+	InCluster bool     `json:"inCluster"`
 }
 
 // Slack contains slack configuration
@@ -56,123 +50,21 @@ type Slack struct {
 	Channel string `json:"channel"`
 }
 
-// New creates new config object
-func New() (*Config, error) {
-	c := &Config{}
-	if err := c.Load(); err != nil {
-		return c, err
-	}
-
-	return c, nil
-}
-
-func createIfNotExist() error {
-	// create file if not exist
-	configFile := filepath.Join(configDir(), ConfigFileName)
-	_, err := os.Stat(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			file, err := os.Create(configFile)
-			if err != nil {
-				return err
-			}
-			file.Close()
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
 // Load loads configuration from config file
 func (c *Config) Load() error {
-	err := createIfNotExist()
-	if err != nil {
-		return err
-	}
+	c.Resource.DaemonSet = viper.GetBool("resource.daemonset")
+	c.Resource.Deployment = viper.GetBool("resource.deployment")
+	c.Resource.Job = viper.GetBool("resource.job")
+	c.Resource.PersistentVolume = viper.GetBool("resource.persistentvolume")
+	c.Resource.Pod = viper.GetBool("resource.pod")
+	c.Resource.ReplicaSet = viper.GetBool("resource.replicaset")
+	c.Resource.ReplicationController = viper.GetBool("resource.replicationcontroller")
+	c.Resource.Services = viper.GetBool("resource.services")
 
-	file, err := os.Open(getConfigFile())
-	if err != nil {
-		return err
-	}
+	c.InCluster = viper.GetBool("inCluster")
 
-	b, err := ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	if len(b) != 0 {
-		return yaml.Unmarshal(b, c)
-	}
+	c.Handler.Slack.Channel = viper.GetString("handler.slack.channel")
+	c.Handler.Slack.Token = viper.GetString("handler.slack.token")
 
 	return nil
-}
-
-func (c *Config) CheckMissingResourceEnvvars() {
-	if !c.Resource.DaemonSet && os.Getenv("KW_DAEMONSET") == "true" {
-		c.Resource.DaemonSet = true
-	}
-	if !c.Resource.ReplicaSet && os.Getenv("KW_REPLICASET") == "true" {
-		c.Resource.ReplicaSet = true
-	}
-	if !c.Resource.Deployment && os.Getenv("KW_DEPLOYMENT") == "true" {
-		c.Resource.Deployment = true
-	}
-	if !c.Resource.Pod && os.Getenv("KW_POD") == "true" {
-		c.Resource.Pod = true
-	}
-	if !c.Resource.ReplicationController && os.Getenv("KW_REPLICATION_CONTROLLER") == "true" {
-		c.Resource.ReplicationController = true
-	}
-	if !c.Resource.Services && os.Getenv("KW_SERVICE") == "true" {
-		c.Resource.Services = true
-	}
-	if !c.Resource.Job && os.Getenv("KW_JOB") == "true" {
-		c.Resource.Job = true
-	}
-	if !c.Resource.PersistentVolume && os.Getenv("KW_PERSISTENT_VOLUME") == "true" {
-		c.Resource.PersistentVolume = true
-	}
-	if (c.Handler.Slack.Channel == "") && (os.Getenv("SLACK_CHANNEL") != "") {
-		c.Handler.Slack.Channel = os.Getenv("SLACK_CHANNEL")
-	}
-	if (c.Handler.Slack.Token == "") && (os.Getenv("SLACK_TOKEN") != "") {
-		c.Handler.Slack.Token = os.Getenv("SLACK_TOKEN")
-	}
-}
-
-func (c *Config) Write() error {
-	b, err := yaml.Marshal(c)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(getConfigFile(), b, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getConfigFile() string {
-	configFile := filepath.Join(configDir(), ConfigFileName)
-	if _, err := os.Stat(configFile); err == nil {
-		return configFile
-	}
-
-	return ""
-}
-
-func configDir() string {
-	if runtime.GOOS == "windows" {
-		home := os.Getenv("USERPROFILE")
-		return home
-	}
-	return os.Getenv("HOME")
-	//path := "/etc/kubewatch"
-	//if _, err := os.Stat(path); os.IsNotExist(err) {
-	//	os.Mkdir(path, 755)
-	//}
-	//return path
 }

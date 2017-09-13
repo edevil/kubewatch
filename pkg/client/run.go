@@ -17,12 +17,11 @@ limitations under the License.
 package client
 
 import (
-	"log"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/skippbox/kubewatch/config"
+	"github.com/skippbox/kubewatch/pkg/controller"
 	"github.com/skippbox/kubewatch/pkg/handlers"
 	"github.com/skippbox/kubewatch/pkg/handlers/slack"
-	"github.com/skippbox/kubewatch/pkg/controller"
 )
 
 // Run runs the event loop processing with given handler
@@ -38,7 +37,7 @@ func Run(conf *config.Config) {
 	eventHandler = new(slack.Slack)
 
 	if err := eventHandler.Init(conf); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	controller.Start(conf, eventHandler)
