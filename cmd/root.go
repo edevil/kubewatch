@@ -23,9 +23,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	c "github.com/skippbox/kubewatch/pkg/client"
-	"github.com/skippbox/kubewatch/config"
 	"github.com/Sirupsen/logrus"
+	"github.com/skippbox/kubewatch/config"
+	c "github.com/skippbox/kubewatch/pkg/client"
 )
 
 var cfgFile string
@@ -34,7 +34,7 @@ var cfgFile string
 var RootCmd = &cobra.Command{
 	Use:   "kubewatch",
 	Short: "A watcher for Kubernetes",
-	Long: `A watcher for Kubernetes`,
+	Long:  `A watcher for Kubernetes`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		config := &config.Config{}
@@ -58,21 +58,23 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	//RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kubewatch.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kubewatch.yaml)")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
+	} else {
+		viper.SetConfigName(".kubewatch") // name of config file (without extension)
+		viper.AddConfigPath("$HOME")      // adding home directory as first search path
 	}
 
-	viper.SetConfigName(".kubewatch.yaml") // name of config file (without extension)
-	viper.AddConfigPath("$HOME")  // adding home directory as first search path
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.SetEnvPrefix("kw")
+	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		//fmt.Println("Using config file:", viper.ConfigFileUsed())
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
 }
