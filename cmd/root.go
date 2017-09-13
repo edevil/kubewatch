@@ -66,14 +66,13 @@ func initConfig() {
 		viper.AddConfigPath("$HOME")      // adding home directory as first search path
 	}
 
-	// TODO: study configration via env vars
-	//viper.SetEnvPrefix("kw")
-	//viper.AutomaticEnv()
+	viper.SetEnvPrefix("kw")
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		logrus.Infoln("Using config file: ", viper.ConfigFileUsed())
 	} else {
-		logrus.Fatal("Could not process config file: ", err)
+		logrus.Infoln("No configuration file was read: ", err)
 	}
 }
