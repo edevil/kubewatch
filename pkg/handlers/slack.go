@@ -15,16 +15,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package slack
+package handlers
 
 import (
 	"fmt"
+
+	"github.com/spf13/viper"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/nlopes/slack"
 
-	"github.com/edevil/kubewatch/config"
 	"github.com/edevil/kubewatch/pkg/event"
 )
 
@@ -50,11 +51,15 @@ type Slack struct {
 }
 
 // Init prepares slack configuration
-func (s *Slack) Init(c *config.Config) error {
-	s.Token = c.Handler.Slack.Token
-	s.Channel = c.Handler.Slack.Channel
+func (s *Slack) Init(c *viper.Viper) error {
+	s.Token = c.GetString("token")
+	s.Channel = c.GetString("channel")
 
-	return checkMissingSlackVars(s)
+	if s.Token == "" || s.Channel == "" {
+		return fmt.Errorf(slackErrMsg, "Missing slack token or channel")
+	}
+
+	return nil
 }
 
 // ObjectCreated - implementation of Handler interface
@@ -89,14 +94,6 @@ func notifySlack(s *Slack, obj interface{}, action string) {
 	logrus.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 }
 
-func checkMissingSlackVars(s *Slack) error {
-	if s.Token == "" || s.Channel == "" {
-		return fmt.Errorf(slackErrMsg, "Missing slack token or channel")
-	}
-
-	return nil
-}
-
 func prepareSlackAttachment(e event.Event) slack.Attachment {
 	msg := fmt.Sprintf(
 		"A %s in namespace %s has been %s: %s",
@@ -122,4 +119,8 @@ func prepareSlackAttachment(e event.Event) slack.Attachment {
 	attachment.MarkdownIn = []string{"fields"}
 
 	return attachment
+}
+
+func init() {
+	HandlerMap["slack"] = &Slack{}
 }

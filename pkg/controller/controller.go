@@ -46,11 +46,11 @@ const maxRetries = 5
 
 // Controller object
 type Controller struct {
-	logger       *logrus.Entry
-	clientset    kubernetes.Interface
-	queue        workqueue.RateLimitingInterface
-	informer     cache.SharedIndexInformer
-	eventHandler handlers.Handler
+	logger        *logrus.Entry
+	clientset     kubernetes.Interface
+	queue         workqueue.RateLimitingInterface
+	informer      cache.SharedIndexInformer
+	eventHandlers []handlers.Handler
 }
 
 // QueueMessage - type of stuff stored on event queue
@@ -60,7 +60,7 @@ type QueueMessage struct {
 }
 
 // Start - starts the controller
-func Start(conf *config.Config, eventHandler handlers.Handler) {
+func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 	var kubeClient kubernetes.Interface
 	if conf.InCluster {
 		kubeClient = utils.GetClient()
@@ -72,32 +72,32 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	defer close(stopCh)
 
 	if conf.Resource.Pod {
-		c := newControllerPod(kubeClient, eventHandler)
+		c := newControllerPod(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Services {
-		c := newControllerServices(kubeClient, eventHandler)
+		c := newControllerServices(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.ReplicationController {
-		c := newControllerRC(kubeClient, eventHandler)
+		c := newControllerRC(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Deployment {
-		c := newControllerDeployment(kubeClient, eventHandler)
+		c := newControllerDeployment(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Job {
-		c := newControllerJob(kubeClient, eventHandler)
+		c := newControllerJob(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.PersistentVolume {
-		c := newControllerPV(kubeClient, eventHandler)
+		c := newControllerPV(kubeClient, eventHandlers)
 		go c.Run(stopCh)
 	}
 
@@ -108,67 +108,67 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 
 }
 
-func newControllerPod(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.Pod{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Pod{})
 }
 
-func newControllerServices(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerServices(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().Services(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().Services(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.Service{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Service{})
 }
 
-func newControllerRC(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerRC(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.ReplicationController{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.ReplicationController{})
 }
 
-func newControllerDeployment(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerDeployment(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &v1beta1.Deployment{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &v1beta1.Deployment{})
 }
 
-func newControllerJob(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerJob(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.BatchV1().Jobs(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.BatchV1().Jobs(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &batchv1.Job{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &batchv1.Job{})
 }
 
-func newControllerPV(client kubernetes.Interface, eventHandler handlers.Handler) *Controller {
+func newControllerPV(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().PersistentVolumes().List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().PersistentVolumes().Watch(options)
 	}
-	return newControllerGeneric(client, eventHandler, listFunc, watchFunc, &api_v1.PersistentVolume{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.PersistentVolume{})
 }
 
-func newControllerGeneric(client kubernetes.Interface, eventHandler handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
+func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	informer := cache.NewSharedIndexInformer(
@@ -201,11 +201,11 @@ func newControllerGeneric(client kubernetes.Interface, eventHandler handlers.Han
 	})
 
 	return &Controller{
-		logger:       logrus.WithField("pkg", "kubewatch-controller"),
-		clientset:    client,
-		informer:     informer,
-		queue:        queue,
-		eventHandler: eventHandler,
+		logger:        logrus.WithField("pkg", "kubewatch-controller"),
+		clientset:     client,
+		informer:      informer,
+		queue:         queue,
+		eventHandlers: eventHandlers,
 	}
 }
 
@@ -272,11 +272,17 @@ func (c *Controller) processItem(msg *QueueMessage) error {
 	c.logger.Infof("Processing change")
 
 	if msg.oldObject == nil {
-		c.eventHandler.ObjectCreated(msg.newObject)
+		for _, eHandler := range c.eventHandlers {
+			eHandler.ObjectCreated(msg.newObject)
+		}
 	} else if msg.newObject == nil {
-		c.eventHandler.ObjectDeleted(msg.oldObject)
+		for _, eHandler := range c.eventHandlers {
+			eHandler.ObjectDeleted(msg.oldObject)
+		}
 	} else {
-		c.eventHandler.ObjectUpdated(msg.oldObject, msg.newObject)
+		for _, eHandler := range c.eventHandlers {
+			eHandler.ObjectUpdated(msg.oldObject, msg.newObject)
+		}
 	}
 
 	return nil

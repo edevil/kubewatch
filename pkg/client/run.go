@@ -18,28 +18,11 @@ limitations under the License.
 package client
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/edevil/kubewatch/config"
 	"github.com/edevil/kubewatch/pkg/controller"
-	"github.com/edevil/kubewatch/pkg/handlers"
-	"github.com/edevil/kubewatch/pkg/handlers/slack"
 )
 
 // Run runs the event loop processing with given handler
 func Run(conf *config.Config) {
-	var eventHandler handlers.Handler
-	//switch {
-	//case len(conf.Handler.Slack.Channel) > 0 || len(conf.Handler.Slack.Token) > 0:
-	//	eventHandler = new(slack.Slack)
-	//default:
-	//	eventHandler = new(handlers.Default)
-	//}
-	//TODO: temporary fix eventHandler = slack. Will add more later.
-	eventHandler = new(slack.Slack)
-
-	if err := eventHandler.Init(conf); err != nil {
-		logrus.Fatal(err)
-	}
-
-	controller.Start(conf, eventHandler)
+	controller.Start(conf, conf.Handlers)
 }

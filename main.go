@@ -17,7 +17,9 @@ limitations under the License.
 
 package main
 
-import "github.com/edevil/kubewatch/cmd"
+import (
+	"github.com/edevil/kubewatch/cmd"
+)
 
 func main() {
 	cmd.Execute()

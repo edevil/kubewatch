@@ -17,13 +17,12 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/edevil/kubewatch/pkg/handlers"
 	"github.com/spf13/viper"
 )
-
-// Handler - hardcoded configured handler
-type Handler struct {
-	Slack Slack `json:"slack"`
-}
 
 // Resource contains resource configuration
 type Resource struct {
@@ -39,15 +38,9 @@ type Resource struct {
 
 // Config struct contains kubewatch configuration
 type Config struct {
-	Handler   Handler  `json:"handler"`
-	Resource  Resource `json:"resource"`
-	InCluster bool     `json:"inCluster"`
-}
-
-// Slack contains slack configuration
-type Slack struct {
-	Token   string `json:"token"`
-	Channel string `json:"channel"`
+	Resource  Resource
+	InCluster bool
+	Handlers  []handlers.Handler
 }
 
 // Load loads configuration from config file
@@ -63,8 +56,19 @@ func (c *Config) Load() error {
 
 	c.InCluster = viper.GetBool("inCluster")
 
-	c.Handler.Slack.Channel = viper.GetString("handler.slack.channel")
-	c.Handler.Slack.Token = viper.GetString("handler.slack.token")
+	handlerMap := viper.GetStringMap("handler")
+	for hName := range handlerMap {
+		if hObject, ok := handlers.HandlerMap[hName]; ok {
+			if err := hObject.Init(viper.Sub("handler." + hName)); err != nil {
+				return err
+			}
+
+			c.Handlers = append(c.Handlers, hObject)
+			logrus.Infoln("Configured handler:", hName)
+		} else {
+			return fmt.Errorf("could not find handler: %s", hName)
+		}
+	}
 
 	return nil
 }
