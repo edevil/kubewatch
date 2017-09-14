@@ -19,10 +19,11 @@ package handlers
 
 import (
 	"fmt"
-
-	"github.com/spf13/viper"
+	"strings"
 
 	"log"
+
+	"github.com/spf13/viper"
 
 	"github.com/nlopes/slack"
 
@@ -64,20 +65,20 @@ func (s *Slack) Init(c *viper.Viper) error {
 
 // ObjectCreated - implementation of Handler interface
 func (s *Slack) ObjectCreated(obj interface{}) {
-	notifySlack(s, obj, "created")
+	notifySlack(s, obj, "created", "")
 }
 
 // ObjectDeleted - implementation of Handler interface
 func (s *Slack) ObjectDeleted(obj interface{}) {
-	notifySlack(s, obj, "deleted")
+	notifySlack(s, obj, "deleted", "")
 }
 
 // ObjectUpdated - implementation of Handler interface
-func (s *Slack) ObjectUpdated(oldObj, newObj interface{}) {
-	notifySlack(s, newObj, "updated")
+func (s *Slack) ObjectUpdated(oldObj, newObj interface{}, changes []string) {
+	notifySlack(s, newObj, "updated", strings.Join(changes, ", "))
 }
 
-func notifySlack(s *Slack, obj interface{}, action string) {
+func notifySlack(s *Slack, obj interface{}, action string, extra string) {
 	e := event.New(obj, action)
 	api := slack.New(s.Token)
 	params := slack.PostMessageParameters{}
@@ -85,7 +86,7 @@ func notifySlack(s *Slack, obj interface{}, action string) {
 
 	params.Attachments = []slack.Attachment{attachment}
 	params.AsUser = true
-	channelID, timestamp, err := api.PostMessage(s.Channel, "", params)
+	channelID, timestamp, err := api.PostMessage(s.Channel, extra, params)
 	if err != nil {
 		log.Printf("%s\n", err)
 		return

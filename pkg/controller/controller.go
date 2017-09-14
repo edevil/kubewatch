@@ -28,6 +28,7 @@ import (
 	"github.com/edevil/kubewatch/config"
 	"github.com/edevil/kubewatch/pkg/handlers"
 	"github.com/edevil/kubewatch/pkg/utils"
+	"github.com/kr/pretty"
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -278,8 +279,9 @@ func (c *Controller) processItem(msg *QueueMessage) error {
 			eHandler.ObjectDeleted(msg.oldObject)
 		}
 	} else {
+		changes := pretty.Diff(msg.oldObject, msg.newObject)
 		for _, eHandler := range c.eventHandlers {
-			eHandler.ObjectUpdated(msg.oldObject, msg.newObject)
+			eHandler.ObjectUpdated(msg.oldObject, msg.newObject, changes)
 		}
 	}
 

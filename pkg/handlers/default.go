@@ -42,8 +42,11 @@ func (d *Default) ObjectDeleted(obj interface{}) {
 	log.Println("Object deleted:", obj)
 }
 
-func (d *Default) ObjectUpdated(oldObj, newObj interface{}) {
+func (d *Default) ObjectUpdated(oldObj, newObj interface{}, changes []string) {
 	log.Println("Object updated. Old:", oldObj, "New object:", newObj)
+	for _, change := range changes {
+		log.Println(change)
+	}
 }
 
 func init() {

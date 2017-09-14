@@ -27,7 +27,7 @@ type Handler interface {
 	Init(c *viper.Viper) error
 	ObjectCreated(obj interface{})
 	ObjectDeleted(obj interface{})
-	ObjectUpdated(oldObj, newObj interface{})
+	ObjectUpdated(oldObj, newObj interface{}, changes []string)
 }
 
 // Map maps each event handler function to a name for easily lookup
