@@ -22,7 +22,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/Sirupsen/logrus"
+	"log"
 
 	"github.com/nlopes/slack"
 
@@ -87,11 +87,11 @@ func notifySlack(s *Slack, obj interface{}, action string) {
 	params.AsUser = true
 	channelID, timestamp, err := api.PostMessage(s.Channel, "", params)
 	if err != nil {
-		logrus.Printf("%s\n", err)
+		log.Printf("%s\n", err)
 		return
 	}
 
-	logrus.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
+	log.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 }
 
 func prepareSlackAttachment(e event.Event) slack.Attachment {

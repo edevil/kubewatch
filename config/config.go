@@ -18,22 +18,22 @@ package config
 
 import (
 	"fmt"
+	"log"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/edevil/kubewatch/pkg/handlers"
 	"github.com/spf13/viper"
 )
 
 // Resource contains resource configuration
 type Resource struct {
-	Deployment            bool `json:"deployment"`
-	ReplicationController bool `json:"rc"`
-	ReplicaSet            bool `json:"rs"`
-	DaemonSet             bool `json:"ds"`
-	Services              bool `json:"svc"`
-	Pod                   bool `json:"po"`
-	Job                   bool `json:"job"`
-	PersistentVolume      bool `json:"pv"`
+	Deployment            bool
+	ReplicationController bool
+	ReplicaSet            bool
+	DaemonSet             bool
+	Services              bool
+	Pod                   bool
+	Job                   bool
+	PersistentVolume      bool
 }
 
 // Config struct contains kubewatch configuration
@@ -64,7 +64,7 @@ func (c *Config) Load() error {
 			}
 
 			c.Handlers = append(c.Handlers, hObject)
-			logrus.Infoln("Configured handler:", hName)
+			log.Println("Configured handler:", hName)
 		} else {
 			return fmt.Errorf("could not find handler: %s", hName)
 		}

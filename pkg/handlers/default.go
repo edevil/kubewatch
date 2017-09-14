@@ -17,7 +17,8 @@ limitations under the License.
 package handlers
 
 import (
-	"github.com/Sirupsen/logrus"
+	"log"
+
 	"github.com/spf13/viper"
 )
 
@@ -29,20 +30,20 @@ type Default struct {
 // Init initializes handler configuration
 // Do nothing for default handler
 func (d *Default) Init(c *viper.Viper) error {
-	logrus.Println("Init called")
+	log.Println("Init called")
 	return nil
 }
 
 func (d *Default) ObjectCreated(obj interface{}) {
-	logrus.Println("Object created:", obj)
+	log.Println("Object created:", obj)
 }
 
 func (d *Default) ObjectDeleted(obj interface{}) {
-	logrus.Println("Object deleted:", obj)
+	log.Println("Object deleted:", obj)
 }
 
 func (d *Default) ObjectUpdated(oldObj, newObj interface{}) {
-	logrus.Println("Object updated. Old:", oldObj, "New object:", newObj)
+	log.Println("Object updated. Old:", oldObj, "New object:", newObj)
 }
 
 func init() {

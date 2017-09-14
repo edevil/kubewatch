@@ -3,7 +3,8 @@ package utils
 import (
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"log"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -13,7 +14,7 @@ import (
 func GetClient() kubernetes.Interface {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		logrus.Fatalf("Can not get kubernetes config: %v", err)
+		log.Fatalf("Can not get kubernetes config: %v", err)
 	}
 
 	return createClient(config)
@@ -22,7 +23,7 @@ func GetClient() kubernetes.Interface {
 func createClient(config *rest.Config) kubernetes.Interface {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logrus.Fatalf("Can not create kubernetes client: %v", err)
+		log.Fatalf("Can not create kubernetes client: %v", err)
 	}
 
 	return clientset
@@ -40,7 +41,7 @@ func buildOutOfClusterConfig() (*rest.Config, error) {
 func GetClientOutOfCluster() kubernetes.Interface {
 	config, err := buildOutOfClusterConfig()
 	if err != nil {
-		logrus.Fatalf("Can not get kubernetes config: %v", err)
+		log.Fatalf("Can not get kubernetes config: %v", err)
 	}
 
 	return createClient(config)

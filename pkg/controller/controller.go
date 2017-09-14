@@ -19,12 +19,12 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/edevil/kubewatch/config"
 	"github.com/edevil/kubewatch/pkg/handlers"
 	"github.com/edevil/kubewatch/pkg/utils"
@@ -46,7 +46,6 @@ const maxRetries = 5
 
 // Controller object
 type Controller struct {
-	logger        *logrus.Entry
 	clientset     kubernetes.Interface
 	queue         workqueue.RateLimitingInterface
 	informer      cache.SharedIndexInformer
@@ -201,7 +200,6 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 	})
 
 	return &Controller{
-		logger:        logrus.WithField("pkg", "kubewatch-controller"),
 		clientset:     client,
 		informer:      informer,
 		queue:         queue,
@@ -214,7 +212,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	c.logger.Info("Starting kubewatch controller")
+	log.Println("Starting kubewatch controller")
 
 	go c.informer.Run(stopCh)
 
@@ -223,7 +221,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 		return
 	}
 
-	c.logger.Info("Kubewatch controller synced and ready")
+	log.Println("Kubewatch controller synced and ready")
 
 	wait.Until(c.runWorker, time.Second, stopCh)
 }
@@ -256,11 +254,11 @@ func (c *Controller) processNextItem() bool {
 		// No error, reset the ratelimit counters
 		c.queue.Forget(key)
 	} else if c.queue.NumRequeues(key) < maxRetries {
-		c.logger.Errorf("Error processing %s (will retry): %v", key, err)
+		log.Printf("Error processing %s (will retry): %v", key, err)
 		c.queue.AddRateLimited(key)
 	} else {
 		// err != nil and too many retries
-		c.logger.Errorf("Error processing %s (giving up): %v", key, err)
+		log.Printf("Error processing %s (giving up): %v", key, err)
 		c.queue.Forget(key)
 		utilruntime.HandleError(err)
 	}
@@ -269,7 +267,7 @@ func (c *Controller) processNextItem() bool {
 }
 
 func (c *Controller) processItem(msg *QueueMessage) error {
-	c.logger.Infof("Processing change")
+	log.Printf("Processing change")
 
 	if msg.oldObject == nil {
 		for _, eHandler := range c.eventHandlers {

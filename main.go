@@ -18,9 +18,15 @@ limitations under the License.
 package main
 
 import (
+	"log"
+
 	"github.com/edevil/kubewatch/cmd"
 )
 
 func main() {
 	cmd.Execute()
+}
+
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 }

@@ -14,12 +14,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
-  version = "v1.0.3"
-
-[[projects]]
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
   revision = "73945b6115bfbbcc57d89b7316e28109364124e1"
@@ -297,6 +291,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7350ddf867dcc9e55cfb63043cac8e0ce00ac008754989c96fbf7bb2e63a4610"
+  inputs-digest = "df31a0bdb1da98b65b4ada255f03d3007110efaa437415a59aae10a476d79ba6"
   solver-name = "gps-cdcl"
   solver-version = 1

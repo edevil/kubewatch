@@ -18,10 +18,11 @@ limitations under the License.
 package cmd
 
 import (
+	"log"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/edevil/kubewatch/config"
 	c "github.com/edevil/kubewatch/pkg/client"
 )
@@ -37,7 +38,7 @@ var RootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		config := &config.Config{}
 		if err := config.Load(); err != nil {
-			logrus.Fatal(err)
+			log.Fatal(err)
 		}
 		c.Run(config)
 	},
@@ -47,7 +48,7 @@ var RootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
@@ -71,8 +72,8 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		logrus.Infoln("Using config file:", viper.ConfigFileUsed())
+		log.Println("Using config file:", viper.ConfigFileUsed())
 	} else {
-		logrus.Infoln("No configuration file was read:", err)
+		log.Println("No configuration file was read:", err)
 	}
 }
