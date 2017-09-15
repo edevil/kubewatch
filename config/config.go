@@ -38,9 +38,10 @@ type Resource struct {
 
 // Config struct contains kubewatch configuration
 type Config struct {
-	Resource  Resource
-	InCluster bool
-	Handlers  []handlers.Handler
+	Resource    Resource
+	InCluster   bool
+	Handlers    []handlers.Handler
+	InitialList bool
 }
 
 // Load loads configuration from config file
@@ -69,6 +70,8 @@ func (c *Config) Load() error {
 			return fmt.Errorf("could not find handler: %s", hName)
 		}
 	}
+
+	c.InitialList = viper.GetBool("initialList")
 
 	return nil
 }

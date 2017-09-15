@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	api_v1 "k8s.io/client-go/pkg/api/v1"
+	v1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
 	"k8s.io/client-go/tools/cache"
@@ -72,32 +73,32 @@ func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 	defer close(stopCh)
 
 	if conf.Resource.Pod {
-		c := newControllerPod(kubeClient, eventHandlers)
+		c := newControllerPod(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Services {
-		c := newControllerServices(kubeClient, eventHandlers)
+		c := newControllerServices(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.ReplicationController {
-		c := newControllerRC(kubeClient, eventHandlers)
+		c := newControllerRC(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Deployment {
-		c := newControllerDeployment(kubeClient, eventHandlers)
+		c := newControllerDeployment(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.Job {
-		c := newControllerJob(kubeClient, eventHandlers)
+		c := newControllerJob(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
 	if conf.Resource.PersistentVolume {
-		c := newControllerPV(kubeClient, eventHandlers)
+		c := newControllerPV(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
@@ -105,70 +106,86 @@ func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
 	<-sigterm
-
 }
 
-func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
+	var rVersion string
+	if !initialList {
+		rList, err := client.CoreV1().Pods(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
+		if err != nil {
+			log.Fatal("Could not fetch initial list:", err)
+		}
+		rVersion = rList.ResourceVersion
+	}
+
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		if !initialList {
+			return &v1.PodList{}, nil
+		}
+
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		if !initialList {
+			options.ResourceVersion = rVersion
+		}
+
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Pod{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Pod{}, initialList)
 }
 
-func newControllerServices(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerServices(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().Services(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().Services(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Service{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Service{}, initialList)
 }
 
-func newControllerRC(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerRC(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().ReplicationControllers(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.ReplicationController{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.ReplicationController{}, initialList)
 }
 
-func newControllerDeployment(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerDeployment(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.AppsV1beta1().Deployments(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &v1beta1.Deployment{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &v1beta1.Deployment{}, initialList)
 }
 
-func newControllerJob(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerJob(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.BatchV1().Jobs(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.BatchV1().Jobs(meta_v1.NamespaceAll).Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &batchv1.Job{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &batchv1.Job{}, initialList)
 }
 
-func newControllerPV(client kubernetes.Interface, eventHandlers []handlers.Handler) *Controller {
+func newControllerPV(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().PersistentVolumes().List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
 		return client.CoreV1().PersistentVolumes().Watch(options)
 	}
-	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.PersistentVolume{})
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.PersistentVolume{}, initialList)
 }
 
-func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object) *Controller {
+func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object, initialList bool) *Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	informer := cache.NewSharedIndexInformer(
@@ -180,6 +197,13 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 		0, //Skip resync
 		cache.Indexers{},
 	)
+
+	c := &Controller{
+		clientset:     client,
+		informer:      informer,
+		queue:         queue,
+		eventHandlers: eventHandlers,
+	}
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -200,12 +224,7 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 		},
 	})
 
-	return &Controller{
-		clientset:     client,
-		informer:      informer,
-		queue:         queue,
-		eventHandlers: eventHandlers,
-	}
+	return c
 }
 
 // Run starts the kubewatch controller
