@@ -30,6 +30,7 @@ import (
 	"github.com/edevil/kubewatch/pkg/utils"
 	"github.com/kr/pretty"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -109,27 +110,10 @@ func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 }
 
 func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
-	var rVersion string
-	if !initialList {
-		rList, err := client.CoreV1().Pods(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
-		if err != nil {
-			log.Fatal("Could not fetch initial list:", err)
-		}
-		rVersion = rList.ResourceVersion
-	}
-
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
-		if !initialList {
-			return &v1.PodList{}, nil
-		}
-
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).List(options)
 	}
 	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
-		if !initialList {
-			options.ResourceVersion = rVersion
-		}
-
 		return client.CoreV1().Pods(meta_v1.NamespaceAll).Watch(options)
 	}
 	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Pod{}, initialList)
@@ -188,10 +172,33 @@ func newControllerPV(client kubernetes.Interface, eventHandlers []handlers.Handl
 func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.Handler, listFunc cache.ListFunc, watchFunc cache.WatchFunc, objType runtime.Object, initialList bool) *Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
+	var rVersion string
+	if !initialList {
+		rList, err := listFunc(meta_v1.ListOptions{})
+		if err != nil {
+			log.Fatal("Could not fetch initial list:", err)
+		}
+		listMetaInterface, err := meta.ListAccessor(rList)
+		if err != nil {
+			log.Fatalf("Unable to understand list result %#v: %v", rList, err)
+		}
+		rVersion = listMetaInterface.GetResourceVersion()
+	}
+
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc:  listFunc,
-			WatchFunc: watchFunc,
+			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+				if !initialList {
+					return &v1.List{}, nil
+				}
+				return listFunc(options)
+			},
+			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
+				if !initialList {
+					options.ResourceVersion = rVersion
+				}
+				return watchFunc(options)
+			},
 		},
 		objType,
 		0, //Skip resync
