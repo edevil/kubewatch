@@ -30,10 +30,11 @@ type Resource struct {
 	ReplicationController bool
 	ReplicaSet            bool
 	DaemonSet             bool
-	Services              bool
+	Service               bool
 	Pod                   bool
 	Job                   bool
 	PersistentVolume      bool
+	Event                 bool
 }
 
 // Config struct contains kubewatch configuration
@@ -53,7 +54,8 @@ func (c *Config) Load() error {
 	c.Resource.Pod = viper.GetBool("resource.pod")
 	c.Resource.ReplicaSet = viper.GetBool("resource.replicaset")
 	c.Resource.ReplicationController = viper.GetBool("resource.replicationcontroller")
-	c.Resource.Services = viper.GetBool("resource.services")
+	c.Resource.Service = viper.GetBool("resource.service")
+	c.Resource.Event = viper.GetBool("resource.event")
 
 	c.InCluster = viper.GetBool("inCluster")
 

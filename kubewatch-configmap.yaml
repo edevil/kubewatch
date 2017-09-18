@@ -13,5 +13,5 @@ data:
       replicationcontroller: false
       replicaset: false
       daemonset: false
-      services: true
+      service: true
       pod: true

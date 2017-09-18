@@ -77,7 +77,7 @@ func (s *Slack) ObjectDeleted(obj interface{}) {
 func (s *Slack) ObjectUpdated(oldObj, newObj interface{}, changes []string) {
 	var extra string
 	if len(changes) > 0 {
-		extra = "{{{" + strings.Join(changes, ", ") + "}}}"
+		extra = "```" + strings.Join(changes, ", ") + "```"
 	}
 	notifySlack(s, newObj, "updated", extra)
 }
@@ -101,11 +101,12 @@ func notifySlack(s *Slack, obj interface{}, action string, extra string) {
 
 func prepareSlackAttachment(e event.Event) slack.Attachment {
 	msg := fmt.Sprintf(
-		"A %s in namespace %s has been %s: %s",
+		"A %s in namespace %s has been %s: %s. %s.",
 		e.Kind,
 		e.Namespace,
 		e.Reason,
 		e.Name,
+		e.Message,
 	)
 
 	attachment := slack.Attachment{

@@ -18,6 +18,8 @@ limitations under the License.
 package event
 
 import (
+	"fmt"
+
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
@@ -34,6 +36,7 @@ type Event struct {
 	Reason    string
 	Status    string
 	Name      string
+	Message   string
 }
 
 var m = map[string]string{
@@ -44,7 +47,7 @@ var m = map[string]string{
 
 // New create new KubewatchEvent
 func New(obj interface{}, action string) Event {
-	var namespace, kind, component, host, reason, status, name string
+	var namespace, kind, component, host, reason, status, name, message string
 	if apiService, ok := obj.(*v1.Service); ok {
 		namespace = apiService.ObjectMeta.Namespace
 		name = apiService.Name
@@ -82,6 +85,13 @@ func New(obj interface{}, action string) Event {
 		kind = "persistent volume"
 		reason = action
 		status = m[action]
+	} else if apiEvent, ok := obj.(*v1.Event); ok {
+		namespace = apiEvent.Namespace
+		name = fmt.Sprintf("%s @ %s", apiEvent.InvolvedObject.Name, apiEvent.Source.Host)
+		kind = apiEvent.InvolvedObject.Kind
+		reason = apiEvent.Reason
+		status = apiEvent.Type
+		message = apiEvent.Message
 	}
 
 	kbEvent := Event{
@@ -92,6 +102,7 @@ func New(obj interface{}, action string) Event {
 		Reason:    reason,
 		Status:    status,
 		Name:      name,
+		Message:   message,
 	}
 
 	return kbEvent

@@ -78,8 +78,8 @@ func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 		go c.Run(stopCh)
 	}
 
-	if conf.Resource.Services {
-		c := newControllerServices(kubeClient, eventHandlers, conf.InitialList)
+	if conf.Resource.Service {
+		c := newControllerService(kubeClient, eventHandlers, conf.InitialList)
 		go c.Run(stopCh)
 	}
 
@@ -103,10 +103,25 @@ func Start(conf *config.Config, eventHandlers []handlers.Handler) {
 		go c.Run(stopCh)
 	}
 
+	if conf.Resource.Event {
+		c := newControllerEvent(kubeClient, eventHandlers, conf.InitialList)
+		go c.Run(stopCh)
+	}
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
 	<-sigterm
+}
+
+func newControllerEvent(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		return client.CoreV1().Events(meta_v1.NamespaceAll).List(options)
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		return client.CoreV1().Events(meta_v1.NamespaceAll).Watch(options)
+	}
+	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Event{}, initialList)
 }
 
 func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
@@ -119,7 +134,7 @@ func newControllerPod(client kubernetes.Interface, eventHandlers []handlers.Hand
 	return newControllerGeneric(client, eventHandlers, listFunc, watchFunc, &api_v1.Pod{}, initialList)
 }
 
-func newControllerServices(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
+func newControllerService(client kubernetes.Interface, eventHandlers []handlers.Handler, initialList bool) *Controller {
 	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
 		return client.CoreV1().Services(meta_v1.NamespaceAll).List(options)
 	}
@@ -180,7 +195,7 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 		}
 		listMetaInterface, err := meta.ListAccessor(rList)
 		if err != nil {
-			log.Fatalf("Unable to understand list result %#v: %v", rList, err)
+			log.Fatalf("Unable to understand list result %v: %v", rList, err)
 		}
 		rVersion = listMetaInterface.GetResourceVersion()
 	}
@@ -194,7 +209,7 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 				return listFunc(options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				if !initialList {
+				if !initialList && options.ResourceVersion == "" {
 					options.ResourceVersion = rVersion
 				}
 				return watchFunc(options)
