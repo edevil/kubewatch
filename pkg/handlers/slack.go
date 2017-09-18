@@ -75,7 +75,11 @@ func (s *Slack) ObjectDeleted(obj interface{}) {
 
 // ObjectUpdated - implementation of Handler interface
 func (s *Slack) ObjectUpdated(oldObj, newObj interface{}, changes []string) {
-	notifySlack(s, newObj, "updated", strings.Join(changes, ", "))
+	var extra string
+	if len(changes) > 0 {
+		extra = "{{{" + strings.Join(changes, ", ") + "}}}"
+	}
+	notifySlack(s, newObj, "updated", extra)
 }
 
 func notifySlack(s *Slack, obj interface{}, action string, extra string) {
