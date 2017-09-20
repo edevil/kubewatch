@@ -19,6 +19,8 @@ package event
 
 import (
 	"fmt"
+	"log"
+	"reflect"
 
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
@@ -92,6 +94,8 @@ func New(obj interface{}, action string) Event {
 		reason = apiEvent.Reason
 		status = apiEvent.Type
 		message = apiEvent.Message
+	} else {
+		log.Printf("Unknown object type: %s -- value --> %s", reflect.TypeOf(obj), obj)
 	}
 
 	kbEvent := Event{
