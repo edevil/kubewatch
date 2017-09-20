@@ -25,10 +25,10 @@ import (
 )
 
 func main() {
+	flag.CommandLine.Parse([]string{"-v", "4", "-logtostderr=true"})
 	cmd.Execute()
 }
 
 func init() {
-	flag.CommandLine.Parse([]string{})
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 }
