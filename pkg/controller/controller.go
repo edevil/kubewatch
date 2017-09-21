@@ -188,28 +188,28 @@ func newControllerGeneric(client kubernetes.Interface, eventHandlers []handlers.
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	var rVersion string
-	if !initialList {
-		rList, err := listFunc(meta_v1.ListOptions{})
-		if err != nil {
-			log.Fatal("Could not fetch initial list:", err)
-		}
-		listMetaInterface, err := meta.ListAccessor(rList)
-		if err != nil {
-			log.Fatalf("Unable to understand list result %v: %v", rList, err)
-		}
-		rVersion = listMetaInterface.GetResourceVersion()
-	}
 
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+				res, err := listFunc(options)
 				if !initialList {
+					if err != nil {
+						log.Fatal("Could not fetch list:", err)
+					}
+					listMetaInterface, err := meta.ListAccessor(res)
+					if err != nil {
+						log.Fatalf("Unable to understand list result %v: %v", res, err)
+					}
+					rVersion = listMetaInterface.GetResourceVersion()
+
 					return &v1.List{}, nil
 				}
-				return listFunc(options)
+
+				return res, err
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				if !initialList && options.ResourceVersion == "" {
+				if !initialList && options.ResourceVersion == "" && rVersion != "" {
 					options.ResourceVersion = rVersion
 				}
 				return watchFunc(options)
