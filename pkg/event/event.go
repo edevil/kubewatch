@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Event represent an event got from k8s api server
@@ -50,6 +51,12 @@ var m = map[string]string{
 // New create new KubewatchEvent
 func New(obj interface{}, action string) Event {
 	var namespace, kind, component, host, reason, status, name, message string
+
+	if deletedObj, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = deletedObj.Obj
+		log.Println("Caught an object whose final state was unknown...")
+	}
+
 	if apiService, ok := obj.(*v1.Service); ok {
 		namespace = apiService.ObjectMeta.Namespace
 		name = apiService.Name
@@ -93,7 +100,7 @@ func New(obj interface{}, action string) Event {
 		kind = apiEvent.InvolvedObject.Kind
 		reason = apiEvent.Reason
 		status = apiEvent.Type
-		message = apiEvent.Message
+		message = action + " - " + apiEvent.Message
 	} else {
 		log.Printf("Unknown object type: %s -- value --> %s", reflect.TypeOf(obj), obj)
 	}
