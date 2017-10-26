@@ -1,17 +1,24 @@
-apiVersion: v1
-kind: Pod
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
   name: kubewatch
 spec:
-  containers:
-  - image: edevil/kubewatch:v0.0.14
-    imagePullPolicy: Always
-    name: kubewatch
-    volumeMounts:
-    - name: config-volume
-      mountPath: /root
-  restartPolicy: Always
-  volumes:
-  - name: config-volume
-    configMap:
-      name: kubewatch
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kubewatch
+    spec:
+      containers:
+      - image: edevil/kubewatch:v0.0.14
+        imagePullPolicy: Always
+        name: kubewatch
+        volumeMounts:
+        - name: config-volume
+          mountPath: /root
+      restartPolicy: Always
+      volumes:
+      - name: config-volume
+        configMap:
+          name: kubewatch
+  minReadySeconds: 2
